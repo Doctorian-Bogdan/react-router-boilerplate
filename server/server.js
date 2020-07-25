@@ -5,6 +5,7 @@ import bodyParser from 'body-parser'
 import sockjs from 'sockjs'
 import { renderToStaticNodeStream } from 'react-dom/server'
 import React from 'react'
+import axios from 'axios'
 
 import cookieParser from 'cookie-parser'
 import config from './config'
@@ -31,6 +32,8 @@ let connections = []
 const port = process.env.PORT || 8090
 const server = express()
 
+const { readFile, writeFile } = require('fs').promises
+
 const middleware = [
   cors(),
   express.static(path.resolve(__dirname, '../dist/assets')),
@@ -40,6 +43,61 @@ const middleware = [
 ]
 
 middleware.forEach((it) => server.use(it))
+
+const read = (file) => {
+  return readFile(`${__dirname}/${file}.json`, { encoding: 'utf8' }).then((data) =>
+    JSON.parse(data)
+  )
+}
+
+const write = (data) => {
+  return writeFile(`${__dirname}/logs.json`, JSON.stringify(data), { encoding: 'utf8' })
+}
+
+server.get('/api/v1/products', async (req, res) => {
+  const products = await read('data')
+  res.json(products)
+})
+
+server.get('/api/v1/currency', async (req, res) => {
+  const { data: currency } = await axios('https://api.exchangeratesapi.io/latest?symbols=USD,CAD')
+  res.json(currency)
+})
+
+server.get('/api/v1/logs', async (req, res) => {
+  const logs = await read('logs')
+  res.json(logs)
+})
+
+server.post('/api/v1/logs', async (req, res) => {
+  const products = await read('data')
+  const logs = await read('logs')
+  let newLog
+  if (req.body.type === 'ADD_SELECTION') {
+    newLog = {
+      time: new Date(),
+      event: `add ${products.find((el) => el.id === req.body.id).title} to the basket`
+    }
+  } else if (req.body.type === 'REMOVE_SELECTION') {
+    newLog = {
+      time: new Date(),
+      event: `remove ${products.find((el) => el.id === req.body.id).title} from the basket`
+    }
+  } else if (req.body.type === 'SET_BASE') {
+    newLog = {
+      time: new Date(),
+      event: `currency was changed to ${req.body.base}`
+    }
+  } else if (req.body.type === 'SET_CATALOG') {
+    newLog = {
+      time: new Date(),
+      event: `type of sorting was changed to ${req.body.sortType}`
+    }
+  }
+  const updatedLogs = [...logs, newLog]
+  await write(updatedLogs)
+  res.json({ status: 'ok' })
+})
 
 server.use('/api/', (req, res) => {
   res.status(404)

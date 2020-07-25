@@ -1,22 +1,28 @@
-import React, { useState } from 'react'
-import Head from './head'
-// import wave from '../assets/images/wave.jpg'
+import React, { useEffect } from 'react'
+import { Route } from 'react-router-dom'
+import { useDispatch } from 'react-redux'
+import Catalog from './main'
+import Header from './header'
+import Basket from './basket'
+import Logs from './logs'
+import { getCurrency, getProducts } from '../redux/reducers/shop'
 
 const Home = () => {
-  const [counter, setCounterNew] = useState(0)
-
+  const dispatch = useDispatch()
+  useEffect(() => {
+    dispatch(getProducts())
+    dispatch(getCurrency())
+  }, [dispatch])
   return (
     <div>
-      <Head title="Hello" />
-      <img alt="wave" src="images/wave.jpg" />
-      <button type="button" onClick={() => setCounterNew(counter + 1)}>
-        updateCounter
-      </button>
-      <div> Hello World Dashboard {counter} </div>
+      <Header />
+      <div className="container mx-auto py-12">
+        <Route exact path="/" component={() => <Catalog />} />
+        <Route exact path="/basket" component={() => <Basket />} />
+        <Route exact path="/logs" component={() => <Logs />} />
+      </div>
     </div>
   )
 }
-
-Home.propTypes = {}
 
 export default Home
